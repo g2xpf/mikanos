@@ -49,6 +49,12 @@ class Terminal {
   Rectangle<int> HistoryUpDown(int direction);
 
   bool show_window_;
+
+  unsigned long current_directory_cluster_{fat::boot_volume_image->root_cluster};
+  std::deque<std::array<char, fat::MAX_NAME_LENGTH>> current_path_;
+
+  void ChangeDirectory(const char*);
+  void PrintCurrentDirectory();
 };
 
 extern std::map<uint64_t, Terminal*>* terminals;

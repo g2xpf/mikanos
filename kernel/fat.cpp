@@ -121,6 +121,63 @@ not_found:
 }
 // #@@range_end(find_file)
 
+std::tuple<FindDirectoryStatus, std::deque<std::array<char, MAX_NAME_LENGTH>>, unsigned long>
+FindDirectory(const char* path, std::deque<std::array<char, MAX_NAME_LENGTH>> current_path, unsigned long directory_cluster) {
+  if(directory_cluster == 0) {
+    directory_cluster = boot_volume_image->root_cluster;
+  }
+  if(path[0] == '/') {
+    ++path;
+    return FindDirectory(path, current_path, directory_cluster);
+  }
+
+  char path_elem[13];
+  const auto [ next_path, post_slash ] = NextPathElement(path, path_elem);
+  const bool path_last = next_path == nullptr || next_path[0] == '\0';
+
+  // current directory
+  if(strcmp(path_elem, ".") == 0) {
+    if(path_last) {
+      return { FindDirectoryStatus::Success, current_path, directory_cluster };
+    } else {
+      return FindDirectory(next_path, current_path, directory_cluster);
+    }
+  }
+
+  while (directory_cluster != kEndOfClusterchain) {
+    auto dir = GetSectorByCluster<DirectoryEntry>(directory_cluster);
+    for (int i = 0; i < bytes_per_cluster / sizeof(DirectoryEntry); ++i) {
+      if (dir[i].name[0] == 0x00) {
+        goto not_found;
+      } else if (!NameIsEqual(dir[i], path_elem)) {
+        continue;
+      }
+
+      if (dir[i].attr == Attribute::kDirectory) {
+        std::array<char, MAX_NAME_LENGTH> path_fragment = {};
+        for(int j = 0; j < MAX_NAME_LENGTH; ++j) {
+          if(path_elem[j] == '\0') break;
+          path_fragment[j] = path_elem[j];
+        }
+        current_path.push_back(path_fragment);
+
+        if(!path_last) {
+          return FindDirectory(next_path, current_path, dir[i].FirstCluster());
+        } else {
+          return { FindDirectoryStatus::Success, current_path, dir[i].FirstCluster() };
+        }
+      } else {
+        return { FindDirectoryStatus::NotDirectory, current_path, 0 };
+      }
+    }
+
+    directory_cluster = NextCluster(directory_cluster);
+  }
+
+not_found:
+  return { FindDirectoryStatus::NotFound, std::deque<std::array<char, MAX_NAME_LENGTH>>(), 0 };
+}
+
 bool NameIsEqual(const DirectoryEntry& entry, const char* name) {
   unsigned char name83[11];
   memset(name83, 0x20, sizeof(name83));

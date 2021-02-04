@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <deque>
+#include <array>
 #include <cstdint>
 #include <cstddef>
 
@@ -51,8 +53,9 @@ enum class Attribute : uint8_t {
   kLongName  = 0x0f,
 };
 
+const int MAX_NAME_LENGTH = 11;
 struct DirectoryEntry {
-  unsigned char name[11];
+  unsigned char name[MAX_NAME_LENGTH];
   Attribute attr;
   uint8_t ntres;
   uint8_t create_time_tenth;
@@ -129,6 +132,14 @@ unsigned long NextCluster(unsigned long cluster);
  */
 std::pair<DirectoryEntry*, bool>
 FindFile(const char* path, unsigned long directory_cluster = 0);
+
+enum class FindDirectoryStatus : char {
+  Success,
+  NotDirectory,
+  NotFound,
+};
+std::tuple<FindDirectoryStatus, std::deque<std::array<char, MAX_NAME_LENGTH>>, unsigned long>
+FindDirectory(const char* path, std::deque<std::array<char, MAX_NAME_LENGTH>> current_path, unsigned long directory_cluster = 0);
 
 bool NameIsEqual(const DirectoryEntry& entry, const char* name);
 

@@ -1,6 +1,7 @@
 #include "terminal.hpp"
 
 #include <cstring>
+#include <fat.hpp>
 #include <limits>
 
 #include "font.hpp"
@@ -292,6 +293,7 @@ Terminal::Terminal(uint64_t task_id, bool show_window)
       .SetDraggable(true)
       .ID();
 
+    PrintCurrentDirectory();
     Print(">");
   }
   cmd_history_.resize(8);
@@ -338,6 +340,8 @@ Rectangle<int> Terminal::InputKey(
       Scroll1();
     }
     ExecuteLine();
+    Print("\n");
+    PrintCurrentDirectory();
     Print(">");
     draw_area.pos = ToplevelWindow::kTopLeftMargin;
     draw_area.size = window_->InnerSize();
@@ -415,9 +419,9 @@ void Terminal::ExecuteLine() {
   // #@@range_begin(command_ls)
   } else if (strcmp(command, "ls") == 0) {
     if (first_arg[0] == '\0') {
-      ListAllEntries(this, fat::boot_volume_image->root_cluster);
+      ListAllEntries(this, current_directory_cluster_);
     } else {
-      auto [ dir, post_slash ] = fat::FindFile(first_arg);
+      auto [ dir, post_slash ] = fat::FindFile(first_arg, current_directory_cluster_);
       if (dir == nullptr) {
         Print("No such file or directory: ");
         Print(first_arg);
@@ -436,11 +440,13 @@ void Terminal::ExecuteLine() {
         }
       }
     }
+  } else if (strcmp(command, "cd") == 0) {
+    ChangeDirectory(first_arg);
   } else if (strcmp(command, "cat") == 0) {
   // #@@range_end(command_ls)
     char s[64];
 
-    auto [ file_entry, post_slash ] = fat::FindFile(first_arg);
+    auto [ file_entry, post_slash ] = fat::FindFile(first_arg, current_directory_cluster_);
     if (!file_entry) {
       sprintf(s, "no such file: %s\n", first_arg);
       Print(s);
@@ -473,7 +479,7 @@ void Terminal::ExecuteLine() {
       .Wakeup();
   // #@@range_begin(command_exec)
   } else if (command[0] != 0) {
-    auto [ file_entry, post_slash ] = fat::FindFile(command);
+    auto [ file_entry, post_slash ] = fat::FindFile(command, current_directory_cluster_);
     if (!file_entry) {
       Print("no such command: ");
       Print(command);
@@ -704,4 +710,49 @@ void TaskTerminal(uint64_t task_id, int64_t data) {
       break;
     }
   }
+}
+
+void Terminal::ChangeDirectory(const char* first_arg) {
+    // cd to root
+    if(first_arg[0] == '\0') {
+        current_directory_cluster_ = fat::boot_volume_image->root_cluster;
+        current_path_.clear();
+        return;
+    }
+
+    auto [status, new_current_path, new_current_directory_cluster] =
+        fat::FindDirectory(first_arg, current_path_, current_directory_cluster_);
+
+    if(status == fat::FindDirectoryStatus::Success) {
+        current_directory_cluster_ = new_current_directory_cluster;
+        current_path_ = new_current_path;
+    } else if(status == fat::FindDirectoryStatus::NotDirectory){
+        Print("`");
+        Print(first_arg);
+        Print("` is not a directory\n");
+    } else if(status == fat::FindDirectoryStatus::NotFound) {
+        Print("`");
+        Print(first_arg);
+        Print("` not found\n");
+    }
+}
+
+void Terminal::PrintCurrentDirectory() {
+    if(current_path_.empty()) {
+        Print("/");
+    } else {
+        std::array<char, kLineMax> path = {};
+        int index = 0;
+        for(const auto& path_fragment : current_path_) {
+            if(index < path.size() - 1) path[index++] = '/';
+            for(const char c: path_fragment) {
+                if(c == '\0') break;
+                if(index < path.size() - 1) {
+                    path[index++] = c;
+                }
+            }
+        }
+        Print(path.data());
+    }
+    Print("\n");
 }
