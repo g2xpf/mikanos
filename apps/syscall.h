@@ -44,6 +44,9 @@ struct SyscallResult SyscallReadFile(int fd, void* buf, size_t count);
 struct SyscallResult SyscallDemandPages(size_t num_pages, int flags);
 struct SyscallResult SyscallMapFile(int fd, size_t* file_size, int flags);
 
+struct SyscallResult SyscallSetDesktopBgImage(int width, int height, const char* data);
+struct SyscallResult SyscallClearDesktopBgImage();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

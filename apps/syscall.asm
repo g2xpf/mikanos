@@ -26,3 +26,5 @@ define_syscall OpenFile,         0x8000000c
 define_syscall ReadFile,         0x8000000d
 define_syscall DemandPages,      0x8000000e
 define_syscall MapFile,          0x8000000f
+define_syscall SetDesktopBgImage,		0x80000010
+define_syscall ClearDesktopBgImage,     0x80000011

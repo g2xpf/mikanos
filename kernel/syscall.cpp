@@ -15,6 +15,7 @@
 #include "timer.hpp"
 #include "keyboard.hpp"
 #include "app_event.hpp"
+#include "graphics.hpp"
 
 namespace syscall {
   struct Result {
@@ -403,13 +404,61 @@ SYSCALL(MapFile) {
   return { vaddr_begin, 0 };
 }
 
+// #@@range_begin(set_window_bg_image)
+SYSCALL(SetDesktopBgImage) {
+  const uint64_t width = arg1;
+  const uint64_t height = arg2;
+  const char* data = reinterpret_cast<const char*>(arg3);
+
+  __asm__("cli");
+  auto* bg_layer = layer_manager->FindLayer(bglayer_id);
+  __asm__("sti");
+
+  if(bg_layer == nullptr) {
+      return { 0, EPERM };
+  }
+  auto window = bg_layer->GetWindow();
+  auto* writer = window->Writer();
+
+  const bool result = InitializeDesktopBgImage(writer, width, height, data);
+
+  __asm__("cli");
+  layer_manager->Draw(bglayer_id);
+  __asm__("sti");
+
+  return { 0, result ? 0 : EFBIG };
+}
+// #@@range_end(set_window_bg_image)
+
+// #@@range_begin(set_window_bg_image)
+SYSCALL(ClearDesktopBgImage) {
+  __asm__("cli");
+  auto* bg_layer = layer_manager->FindLayer(bglayer_id);
+  __asm__("sti");
+
+  if(bg_layer == nullptr) {
+      return { 0, EPERM };
+  }
+  auto window = bg_layer->GetWindow();
+  auto* writer = window->Writer();
+
+  const bool result = FinalizeDesktopBgImage(writer);
+
+  __asm__("cli");
+  layer_manager->Draw(bglayer_id);
+  __asm__("sti");
+
+  return { 0, result ? 0 : EPERM };
+}
+// #@@range_end(set_window_bg_image)
+
 #undef SYSCALL
 
 } // namespace syscall
 
 using SyscallFuncType = syscall::Result (uint64_t, uint64_t, uint64_t,
                                          uint64_t, uint64_t, uint64_t);
-extern "C" std::array<SyscallFuncType*, 0x10> syscall_table{
+extern "C" std::array<SyscallFuncType*, 0x12> syscall_table{
   /* 0x00 */ syscall::LogString,
   /* 0x01 */ syscall::PutString,
   /* 0x02 */ syscall::Exit,
@@ -426,6 +475,8 @@ extern "C" std::array<SyscallFuncType*, 0x10> syscall_table{
   /* 0x0d */ syscall::ReadFile,
   /* 0x0e */ syscall::DemandPages,
   /* 0x0f */ syscall::MapFile,
+  /* 0x10 */ syscall::SetDesktopBgImage,
+  /* 0x11 */ syscall::ClearDesktopBgImage,
 };
 
 void InitializeSyscall() {

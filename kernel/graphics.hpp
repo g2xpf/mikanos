@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <math.h>
 #include "frame_buffer_config.hpp"
 
 struct PixelColor {
@@ -123,19 +124,66 @@ class BGRResv8BitPerColorPixelWriter : public FrameBufferWriter {
   virtual void Write(Vector2D<int> pos, const PixelColor& c) override;
 };
 
+struct DesktopBgImage {
+    static const int MAX_BACKGROUND_WIDTH = 640;
+    static const int MAX_BACKGROUND_HEIGHT = 480;
+
+    int width;
+    int height;
+    PixelColor inner_data[MAX_BACKGROUND_HEIGHT][MAX_BACKGROUND_WIDTH];
+
+    DesktopBgImage(int width, int height, const char* data)
+        : width(width), height(height) {
+            for(int y = 0; y < height; ++y) {
+                for(int x = 0; x < width; ++x) {
+                    inner_data[y][x].r = (data + 3 * (y * width + x))[0];
+                    inner_data[y][x].g = (data + 3 * (y * width + x))[1];
+                    inner_data[y][x].b = (data + 3 * (y * width + x))[2];
+                }
+            }
+        }
+
+    PixelColor& sample(int x, int y, int screen_width, int screen_height) {
+        // nearest sampling
+        float fx = static_cast<float>(x);
+        float fy = static_cast<float>(y);
+        float fscreen_width = static_cast<float>(screen_width);
+        float fscreen_height = static_cast<float>(screen_height);
+
+        float x_coord = fx / fscreen_width * static_cast<float>(width);
+        float y_coord = fy / fscreen_height * static_cast<float>(height);
+        float x_ratio = x_coord - floor(x_coord);
+        float y_ratio = y_coord - floor(y_coord);
+
+        int nx = round(x_coord) + (x_ratio < 0.5);
+        int ny = round(y_coord) + (y_ratio < 0.5);
+
+        // clamp
+        nx = std::max(0, std::min(width, nx));
+        ny = std::max(0, std::min(height, ny));
+
+        return inner_data[ny][nx];
+    }
+};
+
 void DrawRectangle(PixelWriter& writer, const Vector2D<int>& pos,
                    const Vector2D<int>& size, const PixelColor& c);
 
 void FillRectangle(PixelWriter& writer, const Vector2D<int>& pos,
                    const Vector2D<int>& size, const PixelColor& c);
 
-const PixelColor kDesktopBGColor{45, 118, 237};
+const PixelColor kDesktopBGColor{45, 30, 110};
 const PixelColor kDesktopFGColor{255, 255, 255};
 
 void DrawDesktop(PixelWriter& writer);
 
 extern FrameBufferConfig screen_config;
 extern PixelWriter* screen_writer;
+extern DesktopBgImage* desktop_bg_image;
 Vector2D<int> ScreenSize();
 
 void InitializeGraphics(const FrameBufferConfig& screen_config);
+
+bool InitializeDesktopBgImage(PixelWriter* writer, int width, int height, const char* data);
+
+bool FinalizeDesktopBgImage(PixelWriter* writer);

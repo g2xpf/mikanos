@@ -220,6 +220,7 @@ namespace {
 }
 
 LayerManager* layer_manager;
+unsigned int bglayer_id;
 
 ActiveLayer::ActiveLayer(LayerManager& manager) : manager_{manager} {
 }
@@ -275,17 +276,17 @@ void InitializeLayer() {
   layer_manager = new LayerManager;
   layer_manager->SetWriter(screen);
 
-  auto bglayer_id = layer_manager->NewLayer()
+  bglayer_id = layer_manager->NewLayer()
     .SetWindow(bgwindow)
     .Move({0, 0})
     .ID();
-  console->SetLayerID(layer_manager->NewLayer()
-    .SetWindow(console_window)
-    .Move({0, 0})
-    .ID());
+  // console->SetLayerID(layer_manager->NewLayer()
+  //   .SetWindow(console_window)
+  //   .Move({0, 0})
+  //   .ID());
 
   layer_manager->UpDown(bglayer_id, 0);
-  layer_manager->UpDown(console->LayerID(), 1);
+  // layer_manager->UpDown(console->LayerID(), 1);
 
   active_layer = new ActiveLayer{*layer_manager};
 
