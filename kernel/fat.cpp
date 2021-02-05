@@ -144,6 +144,16 @@ FindDirectory(const char* path, std::deque<std::array<char, MAX_NAME_LENGTH>> cu
     } else {
       return FindDirectory(next_path, current_path, directory_cluster);
     }
+  } else if (strcmp(path_elem, "..") == 0) {
+      if(!directory_cluster == boot_volume_image->root_cluster) {
+          directory_cluster = GetSectorByCluster<DirectoryEntry>(directory_cluster)[1].FirstCluster();
+          current_path.pop_back();
+      }
+      if(path_last) {
+          return { FindDirectoryStatus::Success, current_path, directory_cluster };
+      } else {
+          return FindDirectory(next_path, current_path, directory_cluster);
+      }
   }
 
   while (directory_cluster != kEndOfClusterchain) {
