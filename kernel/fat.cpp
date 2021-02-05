@@ -126,9 +126,11 @@ FindDirectory(const char* path, std::deque<std::array<char, MAX_NAME_LENGTH>> cu
   if(directory_cluster == 0) {
     directory_cluster = boot_volume_image->root_cluster;
   }
-  if(path[0] == '/') {
+  while(path[0] == '/') {
     ++path;
-    return FindDirectory(path, current_path, directory_cluster);
+    if(path[0] == '\0') {
+        return { FindDirectoryStatus::Success, current_path, directory_cluster };
+    }
   }
 
   char path_elem[13];

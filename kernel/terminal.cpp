@@ -714,10 +714,20 @@ void TaskTerminal(uint64_t task_id, int64_t data) {
 
 void Terminal::ChangeDirectory(const char* first_arg) {
     // cd to root
-    if(first_arg[0] == '\0') {
-        current_directory_cluster_ = fat::boot_volume_image->root_cluster;
-        current_path_.clear();
-        return;
+    switch(first_arg[0]) {
+        case '\0':
+            current_directory_cluster_ = fat::boot_volume_image->root_cluster;
+            current_path_.clear();
+            return;
+        case '/':
+            current_directory_cluster_ = fat::boot_volume_image->root_cluster;
+            current_path_.clear();
+            if(*(++first_arg) == '\0') {
+                return;
+            }
+            break;
+        default:
+            break;
     }
 
     auto [status, new_current_path, new_current_directory_cluster] =
