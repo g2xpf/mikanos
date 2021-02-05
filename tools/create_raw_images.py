@@ -12,6 +12,9 @@ for filename in os.listdir(in_dir):
     image = Image.open(path)
     data = np.asarray(image, dtype='<u1')
     height, width, color_dim = data.shape
+    if height > 480 or width > 640:
+        print("{} ({}x{}) is too large. ignored", filename)
+        continue
 
     filename_no_ext = os.path.splitext(filename)[0]
     new_filename = "{}/{}.img".format(out_dir, filename_no_ext)
